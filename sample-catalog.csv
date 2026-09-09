@@ -1,6 +1,4 @@
-part_number,name,location,min_qty,quantity
-CAP-45-5,Dual Run Capacitor 45/5 MFD 440V,Shelf A2,6,0
-CON-1P-30,Contactor 1-Pole 30A 24V,Shelf A3,4,0
-TXV-R410-3T,TXV Valve R410A 3-Ton,Bin B1,2,0
-FM-1075-CCW,Condenser Fan Motor 1/4HP 1075RPM CCW,Shelf C1,3,0
-FILT-16x25x1,Air Filter 16x25x1 MERV 8,Bin D4,24,0
+name,unit,category,req,quantity
+"3/4"" PVC 90* ELL",Each,PVC PIPE & FITTINGS,10,0
+"3/8""x50' Soft Copper",Foot,COPPER PIPE & FITTINGS,50,0
+Dual Run Capacitor 45/5 MFD 440V,Each,MISCELLANEOUS ELECTRICAL,6,0

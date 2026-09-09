@@ -237,7 +237,7 @@
   <div class="stats">
     <div class="tile"><div class="n" id="statItems">0</div><div class="l">Items</div></div>
     <div class="tile"><div class="n" id="statUnits">0</div><div class="l">Units</div></div>
-    <div class="tile low" id="lowTile" role="button" tabindex="0"><div class="n" id="statLow">0</div><div class="l">Low stock</div></div>
+    <div class="tile low" id="lowTile" role="button" tabindex="0"><div class="n" id="statLow">0</div><div class="l">Short</div></div>
   </div>
 
   <div class="scanner">
@@ -401,7 +401,7 @@
     $("#statUnits").textContent = units;
     $("#statLow").textContent = low;
     $("#lowTile").classList.toggle("active", state.lowOnly);
-    $("#invTitle").textContent = state.lowOnly ? "Low stock" : "Inventory";
+    $("#invTitle").textContent = state.lowOnly ? "Short (below Req)" : "Inventory";
     $("#footnote").textContent = "Live database · shared across all devices";
 
     const q = ($("#search").value||"").toLowerCase().trim();
@@ -410,6 +410,7 @@
       if(!q) return true;
       return (it.name||"").toLowerCase().includes(q)
         || (it.sku||"").toLowerCase().includes(q)
+        || (it.category||"").toLowerCase().includes(q)
         || (it.barcode||"").includes(q);
     }).sort((a,b)=> new Date(b.updated_at)-new Date(a.updated_at));
 
@@ -418,10 +419,17 @@
       return;
     }
     listEl.innerHTML = shown.map(it=>{
-      const metaBits = [it.barcode, it.sku?("#"+it.sku):"", it.location||""].filter(Boolean).map(esc).join("  ·  ");
+      const bits = [];
+      if(it.category) bits.push(esc(it.category));
+      if(it.unit) bits.push(esc(it.unit));
+      if(it.min_qty>0) bits.push("req " + it.min_qty);
+      if(it.location) bits.push(esc(it.location));
+      if(it.barcode) bits.push(esc(it.barcode));
+      else if(it.sku) bits.push("#" + esc(it.sku));
+      const metaBits = bits.join("  ·  ");
       return `<div class="row ${isLow(it)?"low":""}" data-id="${it.id}">
         <div class="info">
-          <div class="name">${esc(it.name)} ${isLow(it)?'<span class="lowchip">low</span>':''}</div>
+          <div class="name">${esc(it.name)} ${isLow(it)?'<span class="lowchip">short</span>':''}</div>
           <div class="meta">${metaBits}</div>
         </div>
         <div class="stepper">
@@ -459,19 +467,25 @@
   function detailFields(it){
     it = it||{};
     return `
-      <div class="field"><label>Item name</label><input id="fName" value="${esc(it.name)}" placeholder="e.g. Capacitor 45/5 MFD"></div>
+      <div class="field"><label>Item name</label><input id="fName" value="${esc(it.name)}" placeholder="e.g. 3/4&quot; PVC 90* ELL"></div>
+      <div class="grid2">
+        <div class="field"><label>Unit</label><input id="fUnit" value="${esc(it.unit)}" placeholder="Each / Stick / Foot"></div>
+        <div class="field"><label>Category</label><input id="fCat" value="${esc(it.category)}" placeholder="optional"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>On hand</label><input id="fQty" type="number" inputmode="numeric" min="0" value="${it.qty!=null?it.qty:0}"></div>
+        <div class="field"><label>Req (par)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${it.min_qty!=null?it.min_qty:0}"></div>
+      </div>
       <div class="grid2">
         <div class="field"><label>Part # / SKU</label><input id="fSku" value="${esc(it.sku)}" placeholder="optional"></div>
         <div class="field"><label>Location / bin</label><input id="fLoc" value="${esc(it.location)}" placeholder="optional"></div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label>Quantity</label><input id="fQty" type="number" inputmode="numeric" min="0" value="${it.qty!=null?it.qty:1}"></div>
-        <div class="field"><label>Reorder at (min)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${it.min_qty!=null?it.min_qty:0}"></div>
       </div>`;
   }
   function readDetails(){
     return {
       name:(sheet.querySelector("#fName").value||"").trim(),
+      unit:(sheet.querySelector("#fUnit").value||"").trim() || null,
+      category:(sheet.querySelector("#fCat").value||"").trim() || null,
       sku:(sheet.querySelector("#fSku").value||"").trim() || null,
       location:(sheet.querySelector("#fLoc").value||"").trim() || null,
       qty:Math.max(0, parseInt(sheet.querySelector("#fQty").value,10)||0),
@@ -591,9 +605,11 @@
     sku: ["sku","part","part #","part#","part no","part number","part_no","partnumber","partno","mpn","item #","item#","item no","item number","item code"],
     name: ["name","item name","description","desc","item","product","product name","title"],
     barcode: ["barcode","upc","ean","gtin","code","upc/ean","bar code"],
+    unit: ["unit","uom","units","unit of measure","u/m","uofm"],
+    category: ["category","group","section","type","dept","department"],
     location: ["location","bin","shelf","bin location","loc","location/bin","aisle"],
     qty: ["qty","quantity","on hand","onhand","on-hand","count","stock","in stock","qty on hand"],
-    min_qty: ["min","min qty","minimum","min stock","reorder","reorder point","reorder at","min_qty","minimum qty","par"],
+    min_qty: ["req","required","min","min qty","minimum","min stock","reorder","reorder point","reorder at","min_qty","minimum qty","par","par level"],
   };
   const normHeader = h => String(h==null?"":h).trim().toLowerCase().replace(/\s+/g," ");
   function mapHeaders(fields){
@@ -612,8 +628,8 @@
       <div class="grip"></div>
       <div class="kicker">Import catalog (CSV)</div>
       <p style="font-size:.85rem;color:var(--muted);margin:6px 0 14px;line-height:1.5">
-        Needs a <strong>part number</strong> column and a <strong>name</strong> column.
-        Optional: location, min&nbsp;stock, quantity, barcode. Items already in the system keep their current on-hand count.</p>
+        Needs a <strong>name / description</strong> column. Optional: part&nbsp;#, unit, category,
+        Req&nbsp;(par), on-hand, location, barcode. Items already in the system keep their current on-hand count.</p>
       <input type="file" id="impFile" accept=".csv,text/csv">
       <div id="impResult"></div>`;
     sheet.querySelector("#impFile").addEventListener("change", handleImportFile);
@@ -634,26 +650,35 @@
     const fields = res.meta.fields || [];
     const map = mapHeaders(fields);
     const out = sheet.querySelector("#impResult");
-    if(!map.sku || !map.name){
-      out.innerHTML = `<div class="imp-errors">Couldn’t find the required columns.<br>
+    if(!map.name){
+      out.innerHTML = `<div class="imp-errors">Couldn’t find a name/description column.<br>
         Headers found: ${fields.map(esc).join(", ")||"(none)"}.<br>
-        Need one column for <b>part number</b> and one for <b>name</b>.</div>`;
+        Need at least a column for the item <b>name</b>.</div>`;
       return;
     }
-    const existingSkus = new Set(Object.values(state.items).map(it=>it.sku).filter(Boolean).map(s=>s.toLowerCase()));
+    const bySku = new Map(), byName = new Map();
+    Object.values(state.items).forEach(it=>{
+      if(it.sku) bySku.set(it.sku.toLowerCase(), it);
+      if(it.name) byName.set(it.name.toLowerCase(), it);
+    });
     const seen = new Set();
     const toInsert = [], toUpdate = [], errors = [];
     (res.data||[]).forEach((r, i)=>{
-      const sku = String(r[map.sku]==null?"":r[map.sku]).trim();
       const name = String(r[map.name]==null?"":r[map.name]).trim();
-      if(!sku || !name){ errors.push(`Row ${i+2}: missing ${!sku?"part number":"name"}`); return; }
-      if(seen.has(sku.toLowerCase())){ errors.push(`Row ${i+2}: duplicate part # “${sku}” in file`); return; }
-      seen.add(sku.toLowerCase());
-      const base = { sku, name };
+      const sku = map.sku ? String(r[map.sku]==null?"":r[map.sku]).trim() : "";
+      if(!name){ errors.push(`Row ${i+2}: missing name`); return; }
+      const key = (sku || name).toLowerCase();
+      if(seen.has(key)){ errors.push(`Row ${i+2}: duplicate “${sku||name}” in file`); return; }
+      seen.add(key);
+      const base = { name };
+      if(sku) base.sku = sku;
+      if(map.unit){ const v=String(r[map.unit]==null?"":r[map.unit]).trim(); if(v) base.unit=v; }
+      if(map.category){ const v=String(r[map.category]==null?"":r[map.category]).trim(); if(v) base.category=v; }
       if(map.location){ const v=String(r[map.location]==null?"":r[map.location]).trim(); if(v) base.location=v; }
       if(map.min_qty){ const v=parseInt(r[map.min_qty],10); if(!isNaN(v)) base.min_qty=Math.max(0,v); }
       if(map.barcode){ const v=String(r[map.barcode]==null?"":r[map.barcode]).trim(); if(v) base.barcode=v; }
-      if(existingSkus.has(sku.toLowerCase())){ toUpdate.push(base); }        // qty deliberately left alone
+      const existing = (sku && bySku.get(sku.toLowerCase())) || byName.get(name.toLowerCase());
+      if(existing){ base._by = (existing.sku && sku) ? "sku" : "name"; toUpdate.push(base); }   // qty left alone
       else {
         if(map.qty){ const v=parseInt(r[map.qty],10); base.qty = isNaN(v)?0:Math.max(0,v); }
         toInsert.push(base);
@@ -690,8 +715,10 @@
       tick();
     }
     for(const row of toUpdate){
-      const patch = Object.assign({}, row); delete patch.sku;   // match key, don't rewrite it
-      const { data, error } = await sb.from("items").update(patch).eq("sku", row.sku).select();
+      const patch = Object.assign({}, row); const by = patch._by; delete patch._by;
+      let qb = sb.from("items").update(patch);
+      qb = (by === "sku") ? qb.eq("sku", row.sku) : qb.eq("name", row.name);
+      const { data, error } = await qb.select();
       if(error || !data || !data.length){ fail++; } else { upd++; state.items[data[0].id]=data[0]; }
       tick();
     }
