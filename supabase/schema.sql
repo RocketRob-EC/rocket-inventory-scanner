@@ -4,7 +4,7 @@
 -- 1. The inventory table
 create table if not exists public.items (
   id          uuid primary key default gen_random_uuid(),
-  barcode     text not null unique,
+  barcode     text unique,
   name        text not null,
   sku         text,
   location    text,
@@ -56,3 +56,7 @@ alter publication supabase_realtime add table public.items;
 
 -- 5. Helpful index for searching by name
 create index if not exists items_name_idx on public.items (lower(name));
+
+-- 6. Part number (sku) is the catalog key for CSV import — unique (nulls allowed
+--    so scanned-only items without a part number can still coexist).
+create unique index if not exists items_sku_key on public.items (sku);
