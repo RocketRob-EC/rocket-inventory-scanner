@@ -1,0 +1,306 @@
+<title>Rocket Inventory Playbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f5; --surface:#ffffff; --surface-2:#f4f6f9; --ink:#16202e; --muted:#5c6b7f; --line:#dde3ea;
+    --accent:#0d9488; --accent-soft:#d9f3ef; --warn:#b45309; --warn-bg:#fff6e8; --good:#15803d;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1420; --surface:#141d2b; --surface-2:#1b2636; --ink:#e8eef5; --muted:#93a1b5; --line:#26313f;
+      --accent:#2dd4bf; --accent-soft:#12302c; --warn:#fbbf24; --warn-bg:#2a2113; --good:#4ade80;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1420; --surface:#141d2b; --surface-2:#1b2636; --ink:#e8eef5; --muted:#93a1b5; --line:#26313f;
+    --accent:#2dd4bf; --accent-soft:#12302c; --warn:#fbbf24; --warn-bg:#2a2113; --good:#4ade80;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg); color:var(--ink); font-family:"Manrope",system-ui,sans-serif; line-height:1.55; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px; margin:0 auto; padding:40px 22px 80px}
+  header{margin-bottom:34px}
+  .eyebrow{font-size:.72rem; text-transform:uppercase; letter-spacing:.09em; color:var(--accent); font-weight:800}
+  h1{font-size:2.1rem; font-weight:800; letter-spacing:-.02em; margin:6px 0 10px; text-wrap:balance; line-height:1.15}
+  .lede{font-size:1.05rem; color:var(--muted); max-width:62ch; margin:0}
+  .meta{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted); margin-top:14px}
+  h2{font-size:1.25rem; font-weight:800; letter-spacing:-.01em; margin:44px 0 12px; padding-top:22px; border-top:1px solid var(--line); text-wrap:balance}
+  h3{font-size:.98rem; font-weight:800; margin:22px 0 6px}
+  p{max-width:68ch}
+  ul,ol{padding-left:1.25rem; max-width:70ch} li{margin:5px 0}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid transparent} a:hover{border-bottom-color:var(--accent)}
+  .bottom{background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:12px; padding:18px 20px}
+  .bottom ol{margin:8px 0 0}
+  .bottom li{margin:8px 0}
+  .callout{background:var(--warn-bg); border:1px solid var(--warn); border-radius:10px; padding:12px 14px; font-size:.92rem; margin:14px 0}
+  .callout strong{color:var(--warn)}
+  .tbl{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface); margin:14px 0}
+  table{border-collapse:collapse; width:100%; font-size:.88rem}
+  th,td{padding:9px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line)}
+  th{font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:var(--surface-2)}
+  tr:last-child td{border-bottom:0}
+  td.num{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin:14px 0}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .card h4{margin:0 0 6px; font-size:.92rem; font-weight:800}
+  .card p,.card ul{font-size:.88rem; margin:0}
+  .card ul{padding-left:1.1rem}
+  .stat{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--accent)}
+  .quote{border-left:3px solid var(--line); padding:6px 14px; color:var(--muted); font-style:italic; margin:10px 0; max-width:68ch}
+  .quote cite{display:block; font-style:normal; font-size:.78rem; margin-top:4px}
+  .phase{display:grid; grid-template-columns:110px 1fr; gap:14px; padding:12px 0; border-bottom:1px solid var(--line)}
+  .phase:last-child{border-bottom:0}
+  .phase .k{font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600; color:var(--accent); padding-top:3px}
+  .phase h4{margin:0 0 4px; font-size:.95rem}
+  .phase p,.phase ul{font-size:.9rem; margin:0}
+  .flow{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px; margin:14px 0; overflow-x:auto}
+  .flow svg{display:block; width:100%; max-width:820px; height:auto; margin:0 auto; font-family:"Manrope",system-ui,sans-serif}
+  .src{font-size:.84rem; columns:2; column-gap:28px} .src li{break-inside:avoid; margin:4px 0}
+  @media (max-width:640px){ .src{columns:1} .phase{grid-template-columns:1fr; gap:4px} h1{font-size:1.7rem} }
+  .note{font-size:.82rem; color:var(--muted)}
+  .tag{display:inline-block; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; padding:2px 7px; border-radius:6px; border:1px solid var(--line); color:var(--muted); margin-left:6px; vertical-align:2px}
+  .tag.good{color:var(--good); border-color:var(--good)} .tag.warn{color:var(--warn); border-color:var(--warn)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Rocket Cooling · Research findings</div>
+  <h1>How to run inventory across a warehouse and six service vans</h1>
+  <p class="lede">What working HVAC contractors actually do, what ServiceTitan's inventory module can and can't carry, the software landscape, and a recommended operating model for the distributor → warehouse → van flow.</p>
+  <div class="meta">Compiled 2026-09-09 · ~120 searches across trade press, ServiceTitan docs &amp; podcasts, GitHub, YouTube, distributor programs · Reddit and HVAC-Talk block automated reading; their threads are cited from search snippets only.</div>
+</header>
+
+<section class="bottom">
+  <strong>Bottom line</strong>
+  <ol>
+    <li><strong>Process beats software.</strong> Every contractor who made this work did the same four things: named <em>one owner</em>, made <em>logging materials on the invoice the only way to get restocked</em>, restocked each van from a <em>labeled tote pulled by the warehouse</em>, and kept vans to a <em>core 50–150 SKU template</em> with min/max on every bin.</li>
+    <li><strong>Your flow is exactly the textbook model:</strong> two min/max loops. Van below min → warehouse <em>transfer</em>. Warehouse below min → distributor <em>PO</em>. Consumption comes off the invoice.</li>
+    <li><strong>ServiceTitan should be the system of record.</strong> Its Inventory module is already in your plan and matches the model precisely — but it's a one-way switch, needs Purchasing and a clean pricebook first, and its counting app is the weakest part. Nobody who abandoned it lacked features; they lacked an owner.</li>
+    <li><strong>There's no open-source "van stock" product</strong> worth adopting. If you buy beyond ST, <strong>Ply</strong> is the only tool built for HVAC trucks with native ST sync. Sortly/inFlow are generic and don't talk to ST.</li>
+    <li><strong>The scanner app we built has a clear role:</strong> bin labels, opening counts, and weekly cycle counts that post into ST as adjustments — <em>not</em> a parallel system of record. Align its codes to ST pricebook codes so one label works everywhere.</li>
+  </ol>
+</section>
+
+<h2>1. What contractors actually do</h2>
+<p>The pattern is remarkably consistent from 6-truck shops to 100-truck fleets. Sources are named contractors on the record, not vendor blogs.</p>
+<div class="grid">
+  <div class="card"><h4>Templates with min/max per van type</h4><p>Service vans and install vans get different lists. Katy Plumbing (30 techs) ties every truck to min/max levels; Service America cut trucks from <span class="stat">315 → 150–175</span> SKUs and <span class="stat">$20K → $14K</span> per truck once usage data existed.</p></div>
+  <div class="card"><h4>The warehouse restocks, not the tech</h4><p>DiFilippo's: GM pulls used parts from a locked cage into per-tech bins, up to 3×/day in summer. Katy: warehouse manager fills a named bin per tech every night. Ace Hardware Home Services budgets one hire per location for purchasing + inventory.</p></div>
+  <div class="card"><h4>Invoice logging is the only trigger</h4><p>"We wouldn't allow them to use any other way to order their parts." — Katy Plumbing. The #1 rollout failure everywhere: techs not listing every material on the invoice. Fix it with process, then software.</p></div>
+  <div class="card"><h4>Count when the vans are in</h4><p>Evenings or a closed day; weekday counts get skewed by jobs closing afterward. Weekly top-20 usage + top-10 value items, monthly rotation, quarterly dead-stock review. Offload anything unused in 6 months.</p></div>
+  <div class="card"><h4>Bins first, software second</h4><p>Number and label every warehouse bin and van shelf <em>before</em> turning anything on. Min/max written on the bin label. Color by category; "hot zone" at the side door for top movers.</p></div>
+  <div class="card"><h4>Keep techs out of supply houses</h4><p>A supply run is 1–1.5 hrs. Katy Plumbing put it at <span class="stat">$1–2M/yr</span> of unbilled time across 30 techs; Nigel Mulgrew: a $2.50 fitting costs $100–150 in tech time. Kennihan gained <span class="stat">+1 call/tech/day</span>.</p></div>
+</div>
+
+<h3>Failure modes and what fixed them</h3>
+<div class="tbl"><table>
+<tr><th>Failure</th><th>Evidence</th><th>Fix that worked</th></tr>
+<tr><td>Materials not on the invoice</td><td>Root cause of nearly every count drift and write-off</td><td>Invoice = only restock path; weekly scan-vs-invoice reconciliation; photo of installed part</td></tr>
+<tr><td>Shrinkage / side jobs</td><td>Service America truck accuracy 35–40%; docking pay ruled illegal by one owner's attorney</td><td>Scan-to-job-number ("shows what job they used it on" → accuracy 80%+); locked cage; incentives (gift cards) not penalties</td></tr>
+<tr><td>Bloated trucks / hoarding</td><td>315 SKUs per truck; techs buying 6–7 when 5 needed</td><td>Usage-based min/max (~45% fewer SKUs); 6-month seasonal offload</td></tr>
+<tr><td>Count fatigue</td><td>3 hrs/day counting before scanning</td><td>Scan-based cycle counts (Katy → 3 min/day); ABC rotation; count when trucks are in</td></tr>
+<tr><td>Software switched on, then abandoned</td><td>ST users: "overly complicated," "no undo button"</td><td>Prerequisites first (pricebook, POs, owner, opening count); roll out by department; "60–70% is better than 0%"</td></tr>
+<tr><td>Tech resistance</td><td>Multi-decade habits; ~1 year to trust VMI</td><td>Remove alternatives; let techs set up their own trucks; phased, not big-bang</td></tr>
+</table></div>
+
+<h2>2. The replenishment model</h2>
+<p>Two min/max loops chained together. The invoice is the consumption event that drives both.</p>
+<div class="flow">
+<svg viewBox="0 0 820 250" role="img" aria-label="Distributor to warehouse to vans replenishment flow">
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <g fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--line)">
+    <rect x="20" y="70" width="180" height="90" rx="12" fill="var(--surface-2)"/>
+    <rect x="320" y="70" width="180" height="90" rx="12" fill="var(--surface-2)"/>
+    <rect x="620" y="30" width="180" height="60" rx="12" fill="var(--surface-2)"/>
+    <rect x="620" y="110" width="180" height="60" rx="12" fill="var(--surface-2)"/>
+  </g>
+  <g font-size="15" font-weight="800" fill="var(--ink)" text-anchor="middle">
+    <text x="110" y="105">Distributors</text><text x="410" y="105">Warehouse</text>
+    <text x="710" y="55">Service vans ×4</text><text x="710" y="135">Install vans ×2</text>
+  </g>
+  <g font-size="12" fill="var(--muted)" text-anchor="middle">
+    <text x="110" y="128">Johnstone · Ferguson · R.E. Michel</text><text x="110" y="145">scheduled delivery, no will-call</text>
+    <text x="410" y="128">min/max per item · 1 owner</text><text x="410" y="145">POs in · transfers out</text>
+    <text x="710" y="75">core 50–150 SKU template</text><text x="710" y="155">install template + job kits</text>
+  </g>
+  <g stroke="var(--accent)" stroke-width="2.2" fill="none" marker-end="url(#arr)" style="color:var(--accent)">
+    <path d="M200 100 H318"/><path d="M500 95 C560 95 560 60 618 60"/><path d="M500 135 C560 135 560 140 618 140"/>
+  </g>
+  <g font-size="11.5" font-weight="600" fill="var(--accent)" text-anchor="middle">
+    <text x="259" y="90">PO when warehouse &lt; min</text>
+    <text x="559" y="45">transfer when van &lt; min</text>
+  </g>
+  <g stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#arr)" style="color:var(--muted)">
+    <path d="M710 170 V205 H410 V162"/>
+  </g>
+  <text x="560" y="222" font-size="11.5" fill="var(--muted)" text-anchor="middle">tech adds material to invoice → van qty drops → replenishment record</text>
+</svg>
+</div>
+<div class="grid">
+  <div class="card"><h4>Loop A — Warehouse → van</h4><ul>
+    <li><strong>Trigger:</strong> van <em>available + on-order</em> &lt; min → replenish to max.</li>
+    <li><strong>Mechanism:</strong> warehouse picks into a tote labeled with the van ID; tech confirms receipt on mobile (that receipt is the sign-off).</li>
+    <li><strong>Cadence:</strong> daily for high performers, weekly minimum (Fri PM or Mon AM).</li>
+    <li><strong>Rule:</strong> if it moved, it was transferred. Van-to-van swaps without a transfer are the #1 source of drift.</li></ul></div>
+  <div class="card"><h4>Loop B — Distributor → warehouse</h4><ul>
+    <li><strong>Trigger:</strong> transfers deplete the warehouse below its min → PO.</li>
+    <li><strong>Rhythm that works:</strong> order Wed, receive Fri, vans full Mon.</li>
+    <li><strong>Lever:</strong> distributor programs — Johnstone <em>Truck Stock / PartStock</em>, R.E. Michel <em>ESP</em>, Ferguson kitting — deliver to the shop tagged by van and can substitute for part of a warehouse hire.</li>
+    <li><strong>Later:</strong> VMI or consignment for the low-value consumable tail once the process is stable (shrink fell 10–15% → 3–5% in the cases found).</li></ul></div>
+</div>
+
+<h2>3. ServiceTitan: fit, gotchas, decision rule</h2>
+<p><strong>Fit is excellent.</strong> The Inventory module is built around exactly this: locations (warehouse, one truck per tech), <em>templates</em> with min/max per item per location type, replenishment records generated when available + on-order drops below min, bulk creation of <em>transfers</em> (warehouse → truck) or <em>POs</em> (vendor → warehouse), receiving that posts quantities, cycle/full counts, adjustments with GL mapping, and free <em>Full Procurement</em> integrations with Johnstone, Ferguson, R.E. Michel, Winsupply and others that push contractor pricing into the pricebook and send POs electronically. It is included in your plan (not a separately priced add-on) but must be activated by your CSM, and Purchasing must be live first.</p>
+<div class="callout"><strong>One-way door.</strong> "If you turn on Inventory, there is no turning back" — disabling leaves duplicated pricebook items and orphaned truck templates. <strong>Serialized</strong> inventory is separately irreversible. Do the prerequisites first: clean pricebook (vendor, cost, part # on every tracked item), every purchase through a PO for 30–60 days, a named owner, a Saturday opening count with tracking start Sunday.</div>
+<div class="grid">
+  <div class="card"><h4>Where it's strong <span class="tag good">keep</span></h4><ul><li>Invoice → van decrement → replenishment, no double entry</li><li>Job costing lands on the right job</li><li>Free distributor P2P (pricing + e-PO)</li><li>Scales from 5 trucks to 200 (A1 Garage)</li></ul></div>
+  <div class="card"><h4>Where it's weak <span class="tag warn">watch</span></h4><ul><li>Inventory mobile app: 3.2★; counts against <em>On Hand</em> not <em>Available</em>, so staged parts read negative</li><li>No unit-of-measure in the app (rolls → feet)</li><li>Batched transfers can leave stuck negatives</li><li>Counter buys inflate truck stock unless consumed on the invoice</li><li>QuickBooks inventory and ST truck replenishment can't run simultaneously; QBO adjustments don't export</li></ul></div>
+</div>
+<h3>Decision rule</h3>
+<p>If Rocket will name an owner and enforce invoice-line discipline: run native ST Inventory (ST Mobile for consumption, Inventory app for receive/pick), and bolt on a lighter count tool only if the ST app proves painful by month two. If that discipline is uncertain: run <strong>Purchasing only</strong> in ST plus a scanning-app count cycle whose variances post as weekly bulk adjustments — you keep costing right without committing to the irreversible switch.</p>
+
+<h2>4. Software landscape and build-vs-buy</h2>
+<div class="tbl"><table>
+<tr><th>Tool</th><th>Type</th><th>Vans as locations</th><th>Transfers</th><th>Min/max per location</th><th>Mobile scan</th><th>Price</th><th>Fit</th></tr>
+<tr><td><strong>ServiceTitan Inventory</strong></td><td>In your FSM</td><td>Yes</td><td>Yes (replenishment → bulk)</td><td>Yes (templates)</td><td>Yes (3.2★ app)</td><td class="num">included</td><td>Only tool where invoice use auto-decrements the van. <strong>System of record.</strong></td></tr>
+<tr><td><strong>Ply</strong></td><td>Trades SaaS</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes + Brother label printing</td><td class="num">per location, quote</td><td>Built for HVAC/plumbing trucks; native ST two-way sync. Best "buy" if ST's app disappoints.</td></tr>
+<tr><td>inFlow Small Business</td><td>SMB SaaS</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td class="num">$436/mo</td><td>Solid generic; ST only via Zapier.</td></tr>
+<tr><td>Sortly Premium</td><td>SMB SaaS</td><td>Folders</td><td>Move w/ reason</td><td>Per entry</td><td>Yes</td><td class="num">$299/mo</td><td>Simplest UX; no ST link; API enterprise-only.</td></tr>
+<tr><td>eTurns TrackStock</td><td>VMI SaaS</td><td>Yes</td><td>Yes</td><td>Auto-replenish</td><td>Scan / sensor bins</td><td class="num">~$40+/location/mo</td><td>Strongest case-study results; distributor-oriented.</td></tr>
+<tr><td>Zoho / Fishbowl / Cin7 / Katana</td><td>SaaS</td><td>Yes</td><td>Yes</td><td>Mixed</td><td>Yes</td><td class="num">$249–$1,199/mo</td><td>Order/manufacturing-shaped; overkill, no ST.</td></tr>
+<tr><td>InvenTree <span class="note">(7.5k★, MIT)</span></td><td>Open source</td><td>Yes (location tree)</td><td>Yes</td><td><em>Global</em> min only</td><td>Native app</td><td class="num">$0 + VPS</td><td>Best generic OSS; needs a script for per-van min/max.</td></tr>
+<tr><td>ERPNext Stock <span class="note">(39k★)</span></td><td>Open source</td><td>Yes</td><td>Yes + pick lists</td><td><strong>Yes</strong>, incl. "transfer from warehouse"</td><td>Web scan field</td><td class="num">$0–50/mo</td><td>Exact loop, but you inherit a whole ERP.</td></tr>
+<tr><td>Odoo Community</td><td>Open source</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Enterprise-only app</td><td class="num">$0 + heavy ops</td><td>Heaviest self-host; barcode gated.</td></tr>
+<tr><td>Snipe-IT / Homebox / Grocy / PartKeepr</td><td>Open source</td><td colspan="5">Asset or household tools; PartKeepr archived 2025</td><td>Skip for parts. Snipe-IT is fine for <em>tools</em> per van.</td></tr>
+</table></div>
+<p class="note">No maintained open-source project exists for van/truck stock; the only field-service vehicle-stock module (OCA <code>fieldservice_vehicle_stock</code>) stopped at Odoo 14.</p>
+<h3>Extending our Supabase scanner app</h3>
+<div class="tbl"><table>
+<tr><th>Capability</th><th>Design</th><th>Effort</th></tr>
+<tr><td>Multi-location (warehouse + 6 vans)</td><td><code>locations</code> + per-location stock levels from an append-only movement ledger</td><td class="num">1–2 days</td></tr>
+<tr><td>Transfers (two-step: dispatched → received)</td><td>Double-entry <code>stock_movements</code> RPC; status column for tech receipt</td><td class="num">3–5 days</td></tr>
+<tr><td>Min/max per location + pick lists</td><td><code>location_item_params</code>; nightly "below min" view → per-van pick list; warehouse scans to fulfill</td><td class="num">~1 week</td></tr>
+<tr><td>Cycle counts + variance adjustments</td><td>Counts, count lines, adjustment movements with reason codes</td><td class="num">2 days</td></tr>
+<tr><td>Offline scanning in vans</td><td>PWA with queued writes</td><td class="num">3–5 days, easy to get wrong</td></tr>
+<tr><td><strong>Consumption from ServiceTitan invoices</strong></td><td>Poll ST API for materials used per tech/job → post against that tech's van; requires pricebook SKU ↔ item mapping</td><td class="num">1–2 weeks — <strong>make or break</strong></td></tr>
+</table></div>
+<p>Roughly 3–5 dev-weeks for a full parallel system, plus ongoing maintenance — and without the ST sync, techs must scan every part used on the van, which is exactly the discipline that fails. <strong>Recommendation:</strong> don't build a parallel system of record. Point the scanner app at the jobs ST does worst — bin/label printing, opening counts, weekly van cycle counts — and post its variances into ST as bulk adjustments (ST supports XLSX adjustment import). Key its items by the <em>ST pricebook code</em> so a single Code 128 label serves ST Mobile, the ST Inventory app, and the scanner.</p>
+
+<h2>5. Methods playbook</h2>
+<div class="grid">
+  <div class="card"><h4>Min / max (par)</h4><p><strong>Min</strong> = avg daily use × lead-time days + safety stock. <strong>Max</strong> = min + order qty. Safety stock ≈ (max daily use − avg) × max lead time. Van lead time = "next restock" (≈1 week + buffer); warehouse lead time = distributor's real lead time. Compute <em>per truck</em> from the last 60–90 days of invoice data; keep heating and cooling season sets; review quarterly.</p></div>
+  <div class="card"><h4>Two-bin / kanban</h4><p>For cheap fast movers (wire nuts, fuses, straps, common caps/contactors): two labeled bins, work from one, the empty bin is the reorder signal. Physical backstop that survives a missed invoice line. Not for expensive or long-lead parts.</p></div>
+  <div class="card"><h4>ABC classes</h4><p><strong>A</strong> (motors, compressors, refrigerant, boards, thermostats): count weekly/monthly, 99% target. <strong>B</strong>: quarterly, 98%. <strong>C</strong>: 1–2×/yr, 96% — and the two-bin candidates.</p></div>
+  <div class="card"><h4>Cycle counting</h4><p>Consistency beats volume. Trucks: 1–2 vans per week so each is fully counted every 3–6 weeks. Warehouse: A items weekly + ~20 rotating bins; one annual full count for the books. Every adjustment gets a reason code.</p></div>
+  <div class="card"><h4>Kitting</h4><p>Install kits, maintenance kits, hard-start kits, fan-motor kits in labeled totes: one pick, fewer missing parts. ST has no kit item type — model as a Service with attached materials, or a warehouse pick template. Review kit contents quarterly against real usage; distributors (Ferguson, Johnstone "install boxes") will kit too.</p></div>
+  <div class="card"><h4>Labels</h4><p>Label <em>locations</em> first (<code>WH-A-03-02</code>, <code>VAN04-S2-B7</code>), items second. Code 128 for bins and internal item codes; manufacturer UPC where it exists; QR only when you need to encode more. Thermal-transfer <strong>polyester</strong> labels — thermal paper fades in a hot van.</p></div>
+</div>
+
+<h2>6. Recommended operating model for Rocket Cooling</h2>
+<h3>Roles</h3>
+<ul>
+  <li><strong>Parts / warehouse coordinator (≈0.5 FTE at 6 vans)</strong> — receiving by scan, POs, weekly van restock into totes, warehouse cycle counts, variance investigation. The single most predictive success factor.</li>
+  <li><strong>Service manager</strong> — weekly truck inspection (with the count), tech accountability, incentives for clean stocked trucks.</li>
+  <li><strong>Techs</strong> — every material on the invoice before job close; unused parts to a marked returns bin; confirm transfers on mobile; keep two-bin signals honest.</li>
+</ul>
+<h3>Phases</h3>
+<div class="phase"><div class="k">Phase 1<br>weeks 1–4</div><div><h4>Process + physical (no ST switch yet)</h4><ul><li>Name the owner. Write the one-page rule: nothing moves without an invoice line, transfer, or PO.</li><li>Build two van templates (Service, Install) of 50–150 core SKUs with min/max from 60–90 days of ST invoice usage; a Warehouse template.</li><li>Bin and label the warehouse and all six vans in Code 128 (the labels we started printing).</li><li>Opening counts of all seven locations using the scanner app.</li></ul></div></div>
+<div class="phase"><div class="k">Phase 2<br>days 30–60</div><div><h4>ServiceTitan Purchasing live</h4><ul><li>Every purchase through an ST PO; receiving posts quantities.</li><li>Turn on Johnstone / Ferguson / R.E. Michel Full Procurement for pricing and e-POs; scheduled delivery to the shop, will-call only for emergencies.</li><li>Clean the pricebook: vendor, cost, part # on every tracked item. Reconcile to QuickBooks.</li></ul></div></div>
+<div class="phase"><div class="k">Phase 3<br>day 60+</div><div><h4>ServiceTitan Inventory on</h4><ul><li>One warehouse, six trucks sourced from Default Warehouse, templates loaded, "Only Replenish Max" set, Serialized <em>off</em>.</li><li>Saturday beginning-inventory count → tracking start Sunday.</li><li>Weekly replenishment by bulk transfer into van totes; tech confirms on mobile.</li><li>Counts in the scanner app (or ST's app if it proves fine) → weekly bulk adjustments with reason codes. Evaluate Ply at month 3 only if counting stays painful.</li></ul></div></div>
+<h3>Weekly rhythm</h3>
+<div class="tbl"><table>
+<tr><th>When</th><th>Who</th><th>What</th></tr>
+<tr><td>Daily · 20 min</td><td>Coordinator</td><td>Receive POs by scan; review Materials Used / Replenishment; clear returns bin; pull tomorrow's install kits</td></tr>
+<tr><td>Restock day · Fri PM or Mon AM</td><td>Coordinator + techs</td><td>Generate per-van replenishment → bulk transfers → pick into van totes → spot-check A items → tech scans/confirms; refill empty two-bins</td></tr>
+<tr><td>Weekly</td><td>Coordinator + service mgr</td><td>Cycle-count 1–2 vans (each fully counted every 3–6 wks) during the truck inspection; count warehouse A items + ~20 rotating bins</td></tr>
+<tr><td>Monthly</td><td>Coordinator</td><td>Variance report by van and item; adjustments with reason codes; refrigerant reconciled by weight</td></tr>
+<tr><td>Quarterly · Apr &amp; Oct</td><td>Owner + coordinator</td><td>Recalculate min/max from trailing 90 days; swap seasonal templates; prune dead stock; review kit contents</td></tr>
+<tr><td>Annually</td><td>Coordinator + accounting</td><td>Full warehouse count for the books</td></tr>
+</table></div>
+<h3>Metrics to track</h3>
+<ul>
+  <li>Inventory accuracy per location (≥95% overall; 99 / 98 / 96 by A / B / C)</li>
+  <li>Parts runs per tech per week (target → 0) and first-time-fix rate</li>
+  <li>Shrink as % of COGS per van (&lt;2–3% monthly; 10% is the ceiling in the literature)</li>
+  <li>Inventory value per van and turns; days from consumption to restock; unrecorded-transfer count; warehouse variance $ by month</li>
+</ul>
+
+<h2>7. Numbers and quotes worth remembering</h2>
+<div class="quote">"We're not in the parts business. We're in the plumbing business." <cite>Anthony Johnson, Katy Plumbing — on ending supply-house runs worth $1–2M/yr in lost billable time</cite></div>
+<div class="quote">"It just made it more difficult for them to steal because it shows what job they used it on." <cite>Carlos Echazabal, Service America — scan-to-job took truck accuracy from 35–40% to 80%+</cite></div>
+<div class="quote">"Inventory is one thing that frustrates a lot of warehouse managers because there are a lot of hands in the cookie jar… having it 60% or 70% of the way there is much better than 0%." <cite>Steve Cossette, NICE Home Services, on ServiceTitan Inventory</cite></div>
+<div class="quote">"If you turn on Inventory, there is no turning back." <cite>Powerhouse Consulting Group (ST implementation partner)</cite></div>
+<div class="quote">"Small companies have to have the same controls that large companies have." <cite>Laura DiFilippo, DiFilippo's Service Company</cite></div>
+
+<h2>Sources</h2>
+<h3>Contractor practice</h3>
+<ul class="src">
+  <li><a href="https://www.eturns.com/resources/blog/service-truck-inventory-management-how-katy-plumbing-stopped-resupply-runs-and-regained-1-2m-in-revenue/">Katy Plumbing case (eTurns)</a></li>
+  <li><a href="https://www.eturns.com/resources/case-studies/case-study-service-america/">Service America case (eTurns)</a></li>
+  <li><a href="https://hvac-blog.acca.org/whats-on-your-truck/">ACCA — What's on your truck (DiFilippo's)</a></li>
+  <li><a href="https://hvac-blog.acca.org/controlling-inventory-shrinkage/">ACCA — Controlling inventory shrinkage (DUCTZ)</a></li>
+  <li><a href="https://hvactoday.com/kennihan-service-truck-inventory-control/">HVAC Today — Kennihan / R.E. Michel ESP</a></li>
+  <li><a href="https://www.getply.com/case-studies/boosting-service-capacity-nigel-mulgrew-plumbing-testimonial/">Nigel Mulgrew Plumbing (Ply)</a></li>
+  <li><a href="https://www.pmmag.com/articles/95196-vendor-managed-truck-replenishment">PM Magazine — Vendor-managed truck replenishment</a></li>
+  <li><a href="https://homeserviceengine.co/blog/servicetitan-inventory/">HomeServiceEngine — ST inventory playbook</a></li>
+  <li><a href="https://www.inflowinventory.com/blog/secret-life-of-inventory-hvac-business-inventory-management/">inFlow — HVAC inventory episode</a></li>
+  <li><a href="https://forums.mikeholt.com/threads/truck-inventory-best-practices.147793/">Mike Holt forum — truck inventory (snippet)</a></li>
+  <li><a href="https://forums.mikeholt.com/threads/van-inventory-shrinkage.110794/page-4">Mike Holt forum — van shrinkage (snippet)</a></li>
+  <li><a href="https://mycertainpath.com/polizzi_inventory_management/">CertainPath — Polizzi on inventory margin</a></li>
+</ul>
+<h3>ServiceTitan</h3>
+<ul class="src">
+  <li><a href="https://help.servicetitan.com/docs/inventory-module">Inventory module overview</a></li>
+  <li><a href="https://help.servicetitan.com/docs/create-and-edit-inventory-templates">Inventory templates (min/max)</a></li>
+  <li><a href="https://help.servicetitan.com/v1/docs/replenish-items-using-transfers">Replenish items using transfers</a></li>
+  <li><a href="https://help.servicetitan.com/how-to/procure-replenishment">Procure replenishment (POs)</a></li>
+  <li><a href="https://help.servicetitan.com/docs/set-up-inventory-configurations">Inventory configurations (Only Replenish Max)</a></li>
+  <li><a href="https://help.servicetitan.com/v1/docs/inventory-counts">Inventory counts</a></li>
+  <li><a href="https://help.servicetitan.com/how-to/adjustments-overview">Adjustments (incl. XLSX import)</a></li>
+  <li><a href="https://help.servicetitan.com/v1/docs/get-started-with-the-inventory-mobile-app">Inventory mobile app</a></li>
+  <li><a href="https://help.servicetitan.com/docs/barcode-scanning-in-servicetitan-mobile">Barcode scanning in ST Mobile</a></li>
+  <li><a href="https://help.servicetitan.com/docs/available-supply-chain-integrations">Distributor integrations (Johnstone, Ferguson, R.E. Michel…)</a></li>
+  <li><a href="https://help.servicetitan.com/docs/quickbooks-inventory-integration">QuickBooks inventory caveats</a></li>
+  <li><a href="https://mypowerhouse.group/servicetitan-inventory-are-you-ready/">Powerhouse — Are you ready for ST Inventory</a></li>
+  <li><a href="https://www.servicetitan.com/podcasts/mastering-servicetitan/steve-cossette-interview">Podcast — Steve Cossette</a></li>
+  <li><a href="https://www.servicetitan.com/podcasts/mastering-servicetitan/kristy-druding-interview">Podcast — Kristy Druding (Ace Hardware Home Services)</a></li>
+  <li><a href="https://fieldcamp.ai/reviews/servicetitan/">FieldCamp ST review (inventory 5.5/10)</a></li>
+  <li><a href="https://apps.apple.com/us/app/servicetitan-inventory/id1605822999">ST Inventory app — App Store</a></li>
+</ul>
+<h3>Software</h3>
+<ul class="src">
+  <li><a href="https://marketplace.servicetitan.com/partner/ply">Ply — ST marketplace</a> · <a href="https://www.getply.com/pricing/">pricing</a></li>
+  <li><a href="https://www.sortly.com/pricing/">Sortly pricing</a></li>
+  <li><a href="https://www.capterra.com/p/78431/inFlow-Inventory/">inFlow (Capterra)</a></li>
+  <li><a href="https://www.eturns.com/industries/service-trucks/">eTurns TrackStock — service trucks</a></li>
+  <li><a href="https://github.com/inventree/InvenTree">InvenTree</a> · <a href="https://docs.inventree.org/en/stable/app/barcode/">app barcode docs</a></li>
+  <li><a href="https://docs.frappe.io/erpnext/user/manual/en/auto-creation-of-material-request">ERPNext — auto material request (per-warehouse reorder)</a></li>
+  <li><a href="https://github.com/OCA/field-service/tree/18.0">OCA field-service (Odoo)</a></li>
+  <li><a href="https://github.com/openboxes/openboxes">OpenBoxes</a></li>
+  <li><a href="https://github.com/infiniteoo/wms">Great Blue WMS (Supabase)</a></li>
+  <li><a href="https://www.zoho.com/us/inventory/pricing/">Zoho Inventory pricing</a> · <a href="https://www.fishbowlinventory.com/pricing">Fishbowl</a> · <a href="https://www.cin7.com/pricing/">Cin7</a></li>
+</ul>
+<h3>Methods, distributors, video</h3>
+<ul class="src">
+  <li><a href="https://www.eturns.com/resources/blog/reorder-point-formula-the-simple-calculation-for-stockrooms-and-service-trucks/">Reorder-point formula for service trucks</a></li>
+  <li><a href="https://mpulsesoftware.com/blog/cmms/mro-min-max-levels/">MRO min/max levels (MPulse)</a></li>
+  <li><a href="https://www.planview.com/resources/articles/lkdc-2-bin-kanban-system/">Two-bin kanban (Planview)</a></li>
+  <li><a href="https://apicssanantonio.starchapter.com/blog/id/17">APICS/ASCM — ABC cycle counting</a></li>
+  <li><a href="https://spherewms.com/blog/inventory-cycle-counting-best-practices">Cycle counting best practices</a></li>
+  <li><a href="https://fieldservicesoftware.io/glossary/kitting-service-kits/">Kitting for service kits</a></li>
+  <li><a href="https://www.powerofjsog.com/productivity-solutions/truck-stock">Johnstone Truck Stock</a> · <a href="https://www.johnstonesupply.com/partstock">PartStock</a></li>
+  <li><a href="https://www.remichel.com/webservices/webcontent/webcontent/esp">R.E. Michel ESP</a></li>
+  <li><a href="https://www.ferguson.com/content/pro-services/branch-services/inventory-management/">Ferguson inventory / kitting services</a></li>
+  <li><a href="https://www.ebarnett.com/info/truck-stock-replenishment">HD Supply / Barnett truck stock replenishment</a></li>
+  <li><a href="https://verusen.com/mro-procurement-sourcing/vendor-managed-inventory-vmi-for-mro-2/">VMI for MRO (Verusen)</a></li>
+  <li><a href="http://www.finaleinventory.com/guides/barcode-types/">Barcode types — Code 128 vs QR</a></li>
+  <li><a href="https://www.youtube.com/watch?v=BWjk7gp4N_I">YouTube — Getting started with ST Inventory (Cossette)</a></li>
+  <li><a href="https://www.youtube.com/watch?v=r4LJOtwWk0A">YouTube — ST Inventory app with barcode scanning</a></li>
+  <li><a href="https://www.youtube.com/watch?v=UBy5cD5fF54">YouTube — Polizzi: inventory adds 1–3% to the bottom line</a></li>
+  <li><a href="https://www.youtube.com/watch?v=mG8nCuipif4">YouTube — Two-bin kanban explainer</a></li>
+  <li><a href="https://www.youtube.com/watch?v=4GwiRaoa4y8">YouTube — HVAC Bee: service van stock</a> · <a href="https://www.youtube.com/watch?v=O-S4Nu-vwbI">install van stock</a></li>
+  <li><a href="https://www.youtube.com/watch?v=PYLYZw5REU0">YouTube — Logan Services warehouse</a></li>
+</ul>
+<p class="note">Research limits: Reddit, HVAC-Talk, ContractorTalk and Mike Holt forums block automated readers; those threads are cited from search snippets only. Pricing and GitHub activity were checked on 2026-09-09.</p>
+</div>
