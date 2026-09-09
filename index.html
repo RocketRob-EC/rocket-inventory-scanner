@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rocket Inventory Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f5; --surface:#ffffff; --surface-2:#f4f6f9;
+    --ink:#16202e; --muted:#5c6b7f; --line:#dde3ea;
+    --accent:#0d9488; --accent-ink:#ffffff;
+    --add:#16a34a; --remove:#dc2626; --warn:#b45309; --warn-bg:#fff6e8;
+    --shadow:0 1px 2px rgba(16,32,48,.06),0 8px 24px rgba(16,32,48,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1420; --surface:#141d2b; --surface-2:#1b2636;
+      --ink:#e8eef5; --muted:#93a1b5; --line:#26313f;
+      --accent:#2dd4bf; --accent-ink:#052622;
+      --add:#4ade80; --remove:#f87171; --warn:#fbbf24; --warn-bg:#2a2113;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1420; --surface:#141d2b; --surface-2:#1b2636;
+    --ink:#e8eef5; --muted:#93a1b5; --line:#26313f;
+    --accent:#2dd4bf; --accent-ink:#052622;
+    --add:#4ade80; --remove:#f87171; --warn:#fbbf24; --warn-bg:#2a2113;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Manrope",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.4;
+  }
+  .wrap{max-width:520px; margin:0 auto; padding:16px 16px 40px; display:flex; flex-direction:column; gap:16px}
+  [hidden]{display:none!important}
+
+  /* Header */
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:6px}
+  .brand{display:flex; align-items:center; gap:10px}
+  .mark{width:34px; height:34px; border-radius:9px; background:var(--accent); color:var(--accent-ink);
+    display:grid; place-items:center; flex:none}
+  .mark svg{width:20px; height:20px}
+  .brand h1{font-size:1.05rem; font-weight:800; letter-spacing:-.01em; margin:0}
+  .brand p{margin:0; font-size:.72rem; color:var(--muted); letter-spacing:.04em; text-transform:uppercase}
+  .hbtns{display:flex; gap:8px}
+  .icon-btn{background:var(--surface); border:1px solid var(--line); color:var(--muted);
+    height:38px; min-width:38px; padding:0 10px; border-radius:10px; font-size:.85rem; font-weight:600; cursor:pointer; flex:none}
+
+  /* Stat tiles */
+  .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+  .tile{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 12px}
+  .tile.low{cursor:pointer}
+  .tile.low.active{border-color:var(--warn); background:var(--warn-bg)}
+  .tile .n{font-family:"IBM Plex Mono",monospace; font-size:1.5rem; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+  .tile.low .n{color:var(--warn)}
+  .tile .l{font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:2px}
+
+  /* Scanner */
+  .scanner{background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:var(--shadow)}
+  .viewport{position:relative; aspect-ratio:4/3; background:#0a0f16; display:grid; place-items:center}
+  #video{width:100%; height:100%; object-fit:cover; display:none}
+  .viewport.live #video{display:block}
+  .placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:#8ea0b5; padding:20px; text-align:center}
+  .placeholder svg{width:44px; height:44px; opacity:.85}
+  .placeholder p{margin:0; font-size:.85rem; max-width:28ch}
+  .viewport.live .placeholder{display:none}
+  .reticle{position:absolute; inset:0; display:none; pointer-events:none}
+  .viewport.live .reticle{display:block}
+  .reticle .frame{position:absolute; left:12%; right:12%; top:26%; bottom:26%; border-radius:12px;
+    box-shadow:0 0 0 3000px rgba(6,12,20,.42)}
+  .reticle .frame::before,.reticle .frame::after,
+  .reticle .frame > i::before,.reticle .frame > i::after{
+    content:""; position:absolute; width:26px; height:26px; border:3px solid var(--accent)}
+  .reticle .frame::before{top:-2px;left:-2px;border-right:0;border-bottom:0;border-radius:12px 0 0 0}
+  .reticle .frame::after{top:-2px;right:-2px;border-left:0;border-bottom:0;border-radius:0 12px 0 0}
+  .reticle .frame > i::before{bottom:-2px;left:-2px;border-right:0;border-top:0;border-radius:0 0 0 12px}
+  .reticle .frame > i::after{bottom:-2px;right:-2px;border-left:0;border-top:0;border-radius:0 0 12px 0}
+  .laser{position:absolute; left:14%; right:14%; height:2px; background:var(--accent); top:28%;
+    box-shadow:0 0 10px 1px var(--accent); animation:scan 2.2s ease-in-out infinite}
+  @keyframes scan{0%,100%{top:28%}50%{top:72%}}
+  @media (prefers-reduced-motion:reduce){.laser{animation:none; top:50%}}
+
+  .controls{display:flex; gap:8px; padding:12px}
+  .btn{appearance:none; border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+    font-family:inherit; font-weight:600; font-size:.92rem; padding:12px 14px; border-radius:11px; cursor:pointer; flex:1;
+    display:inline-flex; align-items:center; justify-content:center; gap:7px}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent}
+  .btn.block{width:100%; flex:none}
+  .btn svg{width:17px; height:17px}
+  .btn:focus-visible,input:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .btn[disabled]{opacity:.55; cursor:default}
+
+  .manual{display:flex; gap:8px; padding:0 12px 12px}
+  .manual input{flex:1; min-width:0; font-family:"IBM Plex Mono",monospace; font-size:.9rem;
+    background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:11px 12px}
+  .manual button{flex:none}
+
+  /* Inventory */
+  .inv-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px}
+  .inv-head h2{margin:0; font-size:.95rem; font-weight:800; letter-spacing:-.01em}
+  .search{width:100%; font-family:inherit; font-size:.9rem; background:var(--surface); border:1px solid var(--line);
+    color:var(--ink); border-radius:11px; padding:11px 13px}
+  .list{display:flex; flex-direction:column; gap:8px}
+  .row{background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:11px 12px;
+    display:flex; align-items:center; gap:11px}
+  .row.low{border-color:var(--warn)}
+  .row .info{flex:1; min-width:0}
+  .row .name{font-weight:600; font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px}
+  .row .meta{font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .lowchip{font-size:.58rem; text-transform:uppercase; letter-spacing:.05em; color:var(--warn);
+    border:1px solid var(--warn); border-radius:5px; padding:1px 4px; font-family:"Manrope",sans-serif; font-weight:700}
+  .stepper{display:flex; align-items:center; gap:2px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:2px}
+  .stepper button{width:32px; height:32px; border:0; background:transparent; color:var(--ink); font-size:1.2rem; font-weight:700; cursor:pointer; border-radius:8px}
+  .stepper button.minus{color:var(--remove)} .stepper button.plus{color:var(--add)}
+  .stepper .q{min-width:32px; text-align:center; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:1rem; font-variant-numeric:tabular-nums}
+  .row-edit{border:0; background:transparent; color:var(--muted); cursor:pointer; padding:6px; border-radius:8px; flex:none}
+  .row-edit svg{width:17px; height:17px; display:block}
+  .empty{text-align:center; color:var(--muted); font-size:.88rem; padding:26px 10px}
+
+  .footnote{font-size:.72rem; color:var(--muted); text-align:center; line-height:1.5}
+
+  /* Sheet */
+  .backdrop{position:fixed; inset:0; background:rgba(8,14,22,.5); backdrop-filter:blur(2px);
+    display:none; align-items:flex-end; justify-content:center; z-index:20}
+  .backdrop.open{display:flex}
+  .sheet{background:var(--surface); width:100%; max-width:520px; border-radius:20px 20px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom)); box-shadow:0 -10px 40px rgba(0,0,0,.3);
+    animation:rise .22s ease; max-height:90vh; overflow-y:auto}
+  @keyframes rise{from{transform:translateY(18px); opacity:.6}to{transform:none; opacity:1}}
+  @media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+  .sheet .grip{width:38px; height:4px; background:var(--line); border-radius:2px; margin:0 auto 14px}
+  .sheet .kicker{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted)}
+  .sheet .scode{font-family:"IBM Plex Mono",monospace; font-size:1.05rem; font-weight:600; margin:2px 0 14px; word-break:break-all}
+  .sheet .known-name{font-size:1.15rem; font-weight:800; letter-spacing:-.01em}
+  .qty-big{display:flex; align-items:center; justify-content:center; gap:16px; margin:16px 0}
+  .qty-big button{width:60px; height:60px; border-radius:16px; border:1px solid var(--line); background:var(--surface-2);
+    font-size:1.9rem; font-weight:700; cursor:pointer}
+  .qty-big button.minus{color:var(--remove)} .qty-big button.plus{color:var(--add)}
+  .qty-big .val{font-family:"IBM Plex Mono",monospace; font-size:2.6rem; font-weight:600; min-width:88px; text-align:center; font-variant-numeric:tabular-nums}
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px}
+  .field label{font-size:.78rem; color:var(--muted); font-weight:600}
+  .field input{font-family:inherit; font-size:1rem; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--ink); border-radius:11px; padding:12px 13px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .sheet-actions{display:flex; gap:8px; margin-top:6px}
+  details.more{margin:2px 0 10px; border-top:1px solid var(--line); padding-top:12px}
+  details.more summary{cursor:pointer; font-size:.82rem; color:var(--accent); font-weight:600; list-style:none}
+  details.more summary::-webkit-details-marker{display:none}
+
+  /* Login */
+  .login-wrap{min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:20px}
+  .login-card{background:var(--surface); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow);
+    width:100%; max-width:380px; padding:26px 22px}
+  .login-card .mark{width:44px; height:44px; margin-bottom:14px}
+  .login-card h1{margin:0 0 4px; font-size:1.3rem; font-weight:800; letter-spacing:-.01em}
+  .login-card p{margin:0 0 20px; color:var(--muted); font-size:.88rem}
+  .login-err{color:var(--remove); font-size:.82rem; margin:8px 0 0; min-height:1.1em}
+
+  /* Toast */
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--bg); padding:11px 16px; border-radius:11px; font-size:.85rem; font-weight:600;
+    box-shadow:0 8px 24px rgba(0,0,0,.3); opacity:0; transition:opacity .2s, transform .2s; z-index:40; pointer-events:none; max-width:90vw; text-align:center}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--remove); color:#fff}
+</style>
+</head>
+<body>
+
+<!-- ===== Login ===== -->
+<div class="login-wrap" id="loginView" hidden>
+  <form class="login-card" id="loginForm">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14"/></svg>
+    </span>
+    <h1>Rocket Inventory</h1>
+    <p>Sign in with the team login to continue.</p>
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="team@rocketcooling.com" required>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+    </div>
+    <button class="btn primary block" id="loginBtn" type="submit">Sign in</button>
+    <p class="login-err" id="loginErr"></p>
+  </form>
+</div>
+
+<!-- ===== App ===== -->
+<div class="wrap" id="appView" hidden>
+  <header>
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14"/></svg>
+      </span>
+      <div>
+        <h1>Stockroom Scanner</h1>
+        <p>Rocket Cooling</p>
+      </div>
+    </div>
+    <div class="hbtns">
+      <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+      <button class="icon-btn" id="logoutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="tile"><div class="n" id="statItems">0</div><div class="l">Items</div></div>
+    <div class="tile"><div class="n" id="statUnits">0</div><div class="l">Units</div></div>
+    <div class="tile low" id="lowTile" role="button" tabindex="0"><div class="n" id="statLow">0</div><div class="l">Low stock</div></div>
+  </div>
+
+  <div class="scanner">
+    <div class="viewport" id="viewport">
+      <video id="video" playsinline muted></video>
+      <div class="placeholder" id="placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9V6a3 3 0 0 1 3-3h3M15 3h3a3 3 0 0 1 3 3v3M21 15v3a3 3 0 0 1-3 3h-3M9 21H6a3 3 0 0 1-3-3v-3"/><path d="M7 12h10" stroke-width="2"/></svg>
+        <p>Tap <strong>Start camera</strong> and point at a barcode. Allow camera access when prompted.</p>
+      </div>
+      <div class="reticle"><div class="frame"><i></i></div><div class="laser"></div></div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="camBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        <span>Start camera</span>
+      </button>
+    </div>
+    <div class="manual">
+      <input id="manualInput" inputmode="numeric" placeholder="or type a barcode number">
+      <button class="btn" id="manualBtn">Look&nbsp;up</button>
+    </div>
+  </div>
+
+  <div class="inv-head">
+    <h2 id="invTitle">Inventory</h2>
+  </div>
+  <input class="search" id="search" placeholder="Search name, part #, or barcode…">
+  <div class="list" id="list"></div>
+
+  <p class="footnote" id="footnote">Loading…</p>
+</div>
+
+<div class="backdrop" id="backdrop"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const cfg = window.INVENTORY_CONFIG || {};
+  const configured = cfg.SUPABASE_URL && cfg.SUPABASE_URL.indexOf("http")===0
+    && cfg.SUPABASE_ANON_KEY && cfg.SUPABASE_ANON_KEY.indexOf("PASTE")!==0;
+
+  let sb = null;
+  if(configured && window.supabase){ sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY); }
+
+  // ---------- theme ----------
+  (function(){
+    try{ const t = localStorage.getItem("inv_theme"); if(t) document.documentElement.setAttribute("data-theme", t); }catch(e){}
+    $("#themeBtn").addEventListener("click", ()=>{
+      const cur = document.documentElement.getAttribute("data-theme");
+      const isDark = cur ? cur==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      const next = isDark ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try{ localStorage.setItem("inv_theme", next); }catch(e){}
+    });
+  })();
+
+  // ---------- toast ----------
+  let toastT;
+  function toast(msg, isErr){
+    const el = $("#toast"); el.textContent = msg; el.classList.toggle("err", !!isErr); el.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove("show"), isErr?4200:2200);
+  }
+
+  // ---------- feedback ----------
+  let audioCtx;
+  function beep(){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type="square"; o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(.001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.15, audioCtx.currentTime+.01);
+      g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+.16);
+      o.start(); o.stop(audioCtx.currentTime+.17);
+    }catch(e){}
+    if(navigator.vibrate) try{ navigator.vibrate(45); }catch(e){}
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+
+  // ==========================================================
+  //  Data layer (Supabase)
+  // ==========================================================
+  const state = { items: {}, lowOnly:false };
+  const byId = id => state.items[id];
+  function findByBarcode(code){
+    code = String(code).trim();
+    return Object.values(state.items).find(it => it.barcode === code) || null;
+  }
+  function isLow(it){ return it.min_qty > 0 && it.qty <= it.min_qty; }
+
+  async function fetchAll(){
+    const { data, error } = await sb.from("items").select("*").order("updated_at",{ascending:false});
+    if(error){ toast("Couldn’t load inventory: "+error.message, true); return; }
+    state.items = {}; data.forEach(r => state.items[r.id] = r);
+    render();
+  }
+
+  async function lookupBarcode(code){
+    // freshest read straight from DB to avoid duplicate inserts
+    const { data, error } = await sb.from("items").select("*").eq("barcode", String(code).trim()).maybeSingle();
+    if(error && error.code!=="PGRST116"){ toast("Lookup failed: "+error.message, true); }
+    if(data){ state.items[data.id] = data; }
+    return data || null;
+  }
+
+  async function setQty(id, qty){
+    const it = byId(id); if(!it) return;
+    const prev = it.qty; it.qty = Math.max(0, qty); render();          // optimistic
+    const { data, error } = await sb.from("items").update({ qty: it.qty }).eq("id", id).select().single();
+    if(error){ it.qty = prev; render(); toast("Update failed: "+error.message, true); return null; }
+    state.items[id] = data; return data;
+  }
+
+  async function insertItem(row){
+    const { data, error } = await sb.from("items").insert(row).select().single();
+    if(error){
+      if(error.code==="23505"){ toast("That barcode already exists — adjusting it.", false); return await lookupBarcode(row.barcode); }
+      toast("Add failed: "+error.message, true); return null;
+    }
+    state.items[data.id] = data; render(); return data;
+  }
+
+  async function updateItem(id, patch){
+    const { data, error } = await sb.from("items").update(patch).eq("id", id).select().single();
+    if(error){ toast("Save failed: "+error.message, true); return null; }
+    state.items[id] = data; render(); return data;
+  }
+
+  async function removeItem(id){
+    const snapshot = byId(id); delete state.items[id]; render();       // optimistic
+    const { error } = await sb.from("items").delete().eq("id", id);
+    if(error){ state.items[id] = snapshot; render(); toast("Delete failed: "+error.message, true); }
+  }
+
+  function subscribeRealtime(){
+    sb.channel("items-changes")
+      .on("postgres_changes", { event:"*", schema:"public", table:"items" }, payload=>{
+        if(payload.eventType==="DELETE"){ delete state.items[payload.old.id]; }
+        else { state.items[payload.new.id] = payload.new; }
+        render();
+      })
+      .subscribe();
+  }
+
+  // ==========================================================
+  //  Render
+  // ==========================================================
+  const listEl = $("#list");
+  function render(){
+    const all = Object.values(state.items);
+    let units=0, low=0;
+    all.forEach(it=>{ units += Number(it.qty)||0; if(isLow(it)) low++; });
+    $("#statItems").textContent = all.length;
+    $("#statUnits").textContent = units;
+    $("#statLow").textContent = low;
+    $("#lowTile").classList.toggle("active", state.lowOnly);
+    $("#invTitle").textContent = state.lowOnly ? "Low stock" : "Inventory";
+    $("#footnote").textContent = "Live database · shared across all devices";
+
+    const q = ($("#search").value||"").toLowerCase().trim();
+    let shown = all.filter(it=>{
+      if(state.lowOnly && !isLow(it)) return false;
+      if(!q) return true;
+      return (it.name||"").toLowerCase().includes(q)
+        || (it.sku||"").toLowerCase().includes(q)
+        || (it.barcode||"").includes(q);
+    }).sort((a,b)=> new Date(b.updated_at)-new Date(a.updated_at));
+
+    if(!shown.length){
+      listEl.innerHTML = `<div class="empty">${all.length ? "No matches." : "No items yet — scan something to start."}</div>`;
+      return;
+    }
+    listEl.innerHTML = shown.map(it=>{
+      const metaBits = [it.barcode, it.sku?("#"+it.sku):"", it.location||""].filter(Boolean).map(esc).join("  ·  ");
+      return `<div class="row ${isLow(it)?"low":""}" data-id="${it.id}">
+        <div class="info">
+          <div class="name">${esc(it.name)} ${isLow(it)?'<span class="lowchip">low</span>':''}</div>
+          <div class="meta">${metaBits}</div>
+        </div>
+        <div class="stepper">
+          <button class="minus" data-act="dec" aria-label="Remove one">–</button>
+          <span class="q">${it.qty}</span>
+          <button class="plus" data-act="inc" aria-label="Add one">+</button>
+        </div>
+        <button class="row-edit" data-act="edit" aria-label="Edit item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+      </div>`;
+    }).join("");
+  }
+
+  listEl.addEventListener("click", e=>{
+    const btn = e.target.closest("[data-act]"); if(!btn) return;
+    const id = e.target.closest(".row").dataset.id; const it = byId(id); if(!it) return;
+    const act = btn.dataset.act;
+    if(act==="inc") setQty(id, it.qty+1);
+    else if(act==="dec") setQty(id, it.qty-1);
+    else if(act==="edit") openEdit(it);
+  });
+  $("#search").addEventListener("input", render);
+  const lowTile = $("#lowTile");
+  lowTile.addEventListener("click", ()=>{ state.lowOnly=!state.lowOnly; render(); });
+  lowTile.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); state.lowOnly=!state.lowOnly; render(); } });
+
+  // ==========================================================
+  //  Action sheet
+  // ==========================================================
+  const backdrop = $("#backdrop"), sheet = $("#sheet");
+  function closeSheet(){ backdrop.classList.remove("open"); }
+  backdrop.addEventListener("click", e=>{ if(e.target===backdrop){ closeSheet(); resumeScan(); } });
+
+  function detailFields(it){
+    it = it||{};
+    return `
+      <div class="field"><label>Item name</label><input id="fName" value="${esc(it.name)}" placeholder="e.g. Capacitor 45/5 MFD"></div>
+      <div class="grid2">
+        <div class="field"><label>Part # / SKU</label><input id="fSku" value="${esc(it.sku)}" placeholder="optional"></div>
+        <div class="field"><label>Location / bin</label><input id="fLoc" value="${esc(it.location)}" placeholder="optional"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Quantity</label><input id="fQty" type="number" inputmode="numeric" min="0" value="${it.qty!=null?it.qty:1}"></div>
+        <div class="field"><label>Reorder at (min)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${it.min_qty!=null?it.min_qty:0}"></div>
+      </div>`;
+  }
+  function readDetails(){
+    return {
+      name:(sheet.querySelector("#fName").value||"").trim(),
+      sku:(sheet.querySelector("#fSku").value||"").trim() || null,
+      location:(sheet.querySelector("#fLoc").value||"").trim() || null,
+      qty:Math.max(0, parseInt(sheet.querySelector("#fQty").value,10)||0),
+      min_qty:Math.max(0, parseInt(sheet.querySelector("#fMin").value,10)||0),
+    };
+  }
+
+  function openScanSheet(code, existing){
+    if(existing){
+      const it = existing;
+      sheet.innerHTML = `
+        <div class="grip"></div>
+        <div class="kicker">Item found</div>
+        <div class="known-name">${esc(it.name)}</div>
+        <div class="scode">${esc(code)}${it.location?" · "+esc(it.location):""}</div>
+        <div class="qty-big">
+          <button class="minus" id="sMinus" aria-label="Remove one">–</button>
+          <span class="val" id="sVal">${it.qty}</span>
+          <button class="plus" id="sPlus" aria-label="Add one">+</button>
+        </div>
+        <details class="more"><summary>Edit details</summary>${detailFields(it)}
+          <button class="btn block" id="sSaveDetails" style="margin-top:4px">Save details</button>
+        </details>
+        <div class="sheet-actions">
+          <button class="btn" id="sClose">Done</button>
+          <button class="btn primary" id="sNext">Scan next</button>
+        </div>`;
+      const valEl = sheet.querySelector("#sVal");
+      const bump = async d=>{ const r = await setQty(it.id, byId(it.id).qty + d); if(r) valEl.textContent = r.qty; };
+      sheet.querySelector("#sMinus").onclick=()=>bump(-1);
+      sheet.querySelector("#sPlus").onclick=()=>bump(1);
+      sheet.querySelector("#sSaveDetails").onclick=async ()=>{
+        const d = readDetails(); if(!d.name){ toast("Name can’t be empty", true); return; }
+        const r = await updateItem(it.id, d); if(r){ toast("Saved"); closeSheet(); resumeScan(); }
+      };
+      sheet.querySelector("#sClose").onclick=()=>{ closeSheet(); resumeScan(); };
+      sheet.querySelector("#sNext").onclick=()=>{ closeSheet(); resumeScan(); };
+    } else {
+      sheet.innerHTML = `
+        <div class="grip"></div>
+        <div class="kicker">New barcode</div>
+        <div class="scode">${esc(code)}</div>
+        ${detailFields({qty:1, min_qty:0})}
+        <div class="sheet-actions">
+          <button class="btn" id="sCancel">Cancel</button>
+          <button class="btn primary" id="sAdd">Add to inventory</button>
+        </div>`;
+      setTimeout(()=>sheet.querySelector("#fName").focus(), 60);
+      sheet.querySelector("#sCancel").onclick=()=>{ closeSheet(); resumeScan(); };
+      sheet.querySelector("#sAdd").onclick=async ()=>{
+        const d = readDetails(); if(!d.name){ toast("Enter an item name", true); sheet.querySelector("#fName").focus(); return; }
+        const r = await insertItem(Object.assign({ barcode:String(code).trim() }, d));
+        if(r){ toast("Added"); closeSheet(); resumeScan(); }
+      };
+    }
+    backdrop.classList.add("open");
+  }
+
+  function openEdit(it){
+    sheet.innerHTML = `
+      <div class="grip"></div>
+      <div class="kicker">Edit item</div>
+      <div class="scode">${esc(it.barcode)}</div>
+      ${detailFields(it)}
+      <div class="sheet-actions">
+        <button class="btn" id="eDelete" style="color:var(--remove)">Delete</button>
+        <button class="btn primary" id="eSave">Save</button>
+      </div>`;
+    sheet.querySelector("#eSave").onclick=async ()=>{
+      const d = readDetails(); if(!d.name){ toast("Name can’t be empty", true); return; }
+      const r = await updateItem(it.id, d); if(r){ toast("Saved"); closeSheet(); }
+    };
+    sheet.querySelector("#eDelete").onclick=async ()=>{
+      if(!confirm(`Delete "${it.name}"? This cannot be undone.`)) return;
+      await removeItem(it.id); toast("Deleted"); closeSheet();
+    };
+    backdrop.classList.add("open");
+  }
+
+  async function handleCode(code){
+    code = String(code).trim(); if(!code) return;
+    beep();
+    const existing = await lookupBarcode(code);
+    openScanSheet(code, existing);
+  }
+
+  // ---------- manual entry ----------
+  $("#manualBtn").addEventListener("click", ()=>{
+    const v = $("#manualInput").value.trim(); if(v){ $("#manualInput").value=""; handleCode(v); }
+  });
+  $("#manualInput").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#manualBtn").click(); } });
+
+  // ==========================================================
+  //  Camera / ZXing
+  // ==========================================================
+  const viewport = $("#viewport"), camBtn = $("#camBtn"), placeholder = $("#placeholder");
+  let reader=null, running=false, paused=false, lastCode=null, lastAt=0;
+  function setBtn(stop){ camBtn.querySelector("span").textContent = stop?"Stop camera":"Start camera"; camBtn.classList.toggle("primary", !stop); }
+  function resumeScan(){ paused=false; }
+
+  async function startCam(){
+    if(!window.ZXing){ placeholder.querySelector("p").innerHTML="Scanner library didn’t load. Use manual entry below, or reload."; return; }
+    try{
+      reader = new ZXing.BrowserMultiFormatReader();
+      await reader.decodeFromConstraints({ video:{ facingMode:{ ideal:"environment" } } }, "video", (result)=>{
+        if(!result || paused || backdrop.classList.contains("open")) return;
+        const text = result.getText(), now = Date.now();
+        if(text===lastCode && now-lastAt<1500) return;
+        lastCode=text; lastAt=now; paused=true;
+        handleCode(text);
+      });
+      running=true; paused=false; viewport.classList.add("live"); setBtn(true);
+    }catch(err){
+      running=false; viewport.classList.remove("live"); setBtn(false);
+      placeholder.querySelector("p").innerHTML = (err && err.name==="NotAllowedError")
+        ? "Camera access was blocked. Allow it in your browser settings, or type the barcode below."
+        : "Couldn’t start the camera on this device. You can still type barcodes below.";
+    }
+  }
+  function stopCam(){ try{ reader && reader.reset(); }catch(e){} running=false; paused=false; viewport.classList.remove("live"); setBtn(false); }
+  camBtn.addEventListener("click", ()=>{ running ? stopCam() : startCam(); });
+
+  // ==========================================================
+  //  Auth + boot
+  // ==========================================================
+  const loginView = $("#loginView"), appView = $("#appView");
+  function showApp(show){ appView.hidden = !show; loginView.hidden = show; }
+
+  try{ const e = localStorage.getItem("inv_email"); if(e) $("#email").value = e; }catch(e){}
+
+  $("#loginForm").addEventListener("submit", async ev=>{
+    ev.preventDefault();
+    const email = $("#email").value.trim(), password = $("#password").value;
+    const errEl = $("#loginErr"), btn = $("#loginBtn");
+    errEl.textContent=""; btn.disabled=true; btn.textContent="Signing in…";
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled=false; btn.textContent="Sign in";
+    if(error){ errEl.textContent = error.message; return; }
+    try{ localStorage.setItem("inv_email", email); }catch(e){}
+  });
+
+  $("#logoutBtn").addEventListener("click", async ()=>{ stopCam(); await sb.auth.signOut(); });
+
+  let entered = false;              // guards one fetch + one realtime subscription per signed-in session
+  async function enterApp(){
+    showApp(true);
+    if(entered) return;
+    entered = true;
+    await fetchAll();
+    subscribeRealtime();
+  }
+
+  function boot(){
+    if(!configured){
+      showApp(false);
+      $("#loginErr").textContent = "App not configured yet — add your Supabase URL and anon key to config.js.";
+      $("#loginBtn").disabled = true;
+      return;
+    }
+    // onAuthStateChange fires INITIAL_SESSION on registration, so it drives the initial view too.
+    sb.auth.onAuthStateChange((_evt, sess)=>{
+      if(sess){ enterApp(); }
+      else { entered = false; stopCam(); showApp(false); }
+    });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
