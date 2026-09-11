@@ -7,9 +7,12 @@ create table if not exists public.items (
   barcode     text unique,
   name        text not null,
   sku         text,
+  unit        text,
+  category    text,
   location    text,
   qty         integer not null default 0,
-  min_qty     integer not null default 0,
+  min_qty     integer not null default 0,   -- reorder point ("short" when qty <= min_qty)
+  max_qty     integer not null default 0,   -- fill-to level for replenishment
   updated_at  timestamptz not null default now()
 );
 

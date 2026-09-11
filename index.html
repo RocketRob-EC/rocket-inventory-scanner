@@ -509,7 +509,7 @@
   function rowHtml(it){
     const bits = [];
     if(it.unit) bits.push(esc(it.unit));
-    if(it.min_qty>0) bits.push("req " + it.min_qty);
+    if(it.min_qty>0) bits.push("min " + it.min_qty + (it.max_qty>it.min_qty ? "/max " + it.max_qty : ""));
     if(it.location) bits.push(esc(it.location));
     if(it.barcode) bits.push(esc(it.barcode));
     else if(it.sku) bits.push("#" + esc(it.sku));
@@ -579,9 +579,10 @@
         <div class="field"><label>Unit</label><input id="fUnit" value="${esc(it.unit)}" placeholder="Each / Stick / Foot"></div>
         <div class="field"><label>Category</label><input id="fCat" value="${esc(it.category)}" placeholder="optional"></div>
       </div>
+      <div class="field"><label>On hand</label><input id="fQty" type="number" inputmode="numeric" min="0" value="${it.qty!=null?it.qty:0}"></div>
       <div class="grid2">
-        <div class="field"><label>On hand</label><input id="fQty" type="number" inputmode="numeric" min="0" value="${it.qty!=null?it.qty:0}"></div>
-        <div class="field"><label>Req (par)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${it.min_qty!=null?it.min_qty:0}"></div>
+        <div class="field"><label>Min (reorder at)</label><input id="fMin" type="number" inputmode="numeric" min="0" value="${it.min_qty!=null?it.min_qty:0}"></div>
+        <div class="field"><label>Max (fill to)</label><input id="fMax" type="number" inputmode="numeric" min="0" value="${it.max_qty!=null?it.max_qty:(it.min_qty!=null?it.min_qty:0)}"></div>
       </div>
       <div class="grid2">
         <div class="field"><label>Part # / SKU</label><input id="fSku" value="${esc(it.sku)}" placeholder="optional"></div>
@@ -589,6 +590,9 @@
       </div>`;
   }
   function readDetails(){
+    const min_qty = Math.max(0, parseInt(sheet.querySelector("#fMin").value,10)||0);
+    let max_qty = Math.max(0, parseInt(sheet.querySelector("#fMax").value,10)||0);
+    if(max_qty < min_qty) max_qty = min_qty;   // max can't be below min
     return {
       name:(sheet.querySelector("#fName").value||"").trim(),
       unit:(sheet.querySelector("#fUnit").value||"").trim() || null,
@@ -596,7 +600,8 @@
       sku:(sheet.querySelector("#fSku").value||"").trim() || null,
       location:(sheet.querySelector("#fLoc").value||"").trim() || null,
       qty:Math.max(0, parseInt(sheet.querySelector("#fQty").value,10)||0),
-      min_qty:Math.max(0, parseInt(sheet.querySelector("#fMin").value,10)||0),
+      min_qty,
+      max_qty,
     };
   }
 
@@ -717,6 +722,7 @@
     location: ["location","bin","shelf","bin location","loc","location/bin","aisle"],
     qty: ["qty","quantity","on hand","onhand","on-hand","count","stock","in stock","qty on hand"],
     min_qty: ["req","required","min","min qty","minimum","min stock","reorder","reorder point","reorder at","min_qty","minimum qty","par","par level"],
+    max_qty: ["max","max qty","maximum","max stock","max_qty","maximum qty","fill to","fill-to","order up to","target"],
   };
   const normHeader = h => String(h==null?"":h).trim().toLowerCase().replace(/\s+/g," ");
   function mapHeaders(fields){
@@ -783,6 +789,8 @@
       if(map.category){ const v=String(r[map.category]==null?"":r[map.category]).trim(); if(v) base.category=v; }
       if(map.location){ const v=String(r[map.location]==null?"":r[map.location]).trim(); if(v) base.location=v; }
       if(map.min_qty){ const v=parseInt(r[map.min_qty],10); if(!isNaN(v)) base.min_qty=Math.max(0,v); }
+      if(map.max_qty){ const v=parseInt(r[map.max_qty],10); if(!isNaN(v)) base.max_qty=Math.max(0,v); }
+      if(base.max_qty!=null && base.min_qty!=null && base.max_qty < base.min_qty) base.max_qty = base.min_qty;
       if(map.barcode){ const v=String(r[map.barcode]==null?"":r[map.barcode]).trim(); if(v) base.barcode=v; }
       const existing = (sku && bySku.get(sku.toLowerCase())) || byName.get(name.toLowerCase());
       if(existing){ base._by = (existing.sku && sku) ? "sku" : "name"; toUpdate.push(base); }   // qty left alone
