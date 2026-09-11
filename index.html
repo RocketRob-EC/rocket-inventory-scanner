@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <title>Rocket Inventory Scanner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -314,6 +315,7 @@
 <script>
 (function(){
   "use strict";
+  const BUILD = "build 2026-09-11-2";   // bump on each deploy so the footer shows which version a device has
   const $ = s => document.querySelector(s);
   const cfg = window.INVENTORY_CONFIG || {};
   const configured = cfg.SUPABASE_URL && cfg.SUPABASE_URL.indexOf("http")===0
@@ -439,7 +441,7 @@
     $("#statLow").textContent = low;
     $("#lowTile").classList.toggle("active", state.lowOnly);
     $("#invTitle").textContent = state.lowOnly ? "Short (below Req)" : (state.cat || "Inventory");
-    $("#footnote").textContent = "Live database · shared across all devices";
+    $("#footnote").textContent = "Live database · shared across all devices · " + BUILD;
 
     // Category tallies (over everything, so chip counts stay stable while filtering)
     const tally = new Map();
