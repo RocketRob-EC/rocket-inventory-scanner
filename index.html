@@ -193,6 +193,9 @@
     font-size:1.9rem; font-weight:700; cursor:pointer}
   .qty-big button.minus{color:var(--remove)} .qty-big button.plus{color:var(--add)}
   .qty-big .val{font-family:"IBM Plex Mono",monospace; font-size:2.6rem; font-weight:600; min-width:88px; text-align:center; font-variant-numeric:tabular-nums}
+  .setrow{display:flex; gap:8px; margin:0 0 4px}
+  .setrow input{flex:1; min-width:0; font-family:inherit; font-size:1rem; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:11px; padding:12px 13px}
+  .setrow button{flex:none}
   .field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px}
   .field label{font-size:.78rem; color:var(--muted); font-weight:600}
   .field input{font-family:inherit; font-size:1rem; background:var(--surface-2); border:1px solid var(--line);
@@ -292,7 +295,6 @@
     <h2 id="invTitle">Inventory</h2>
     <div class="hbtns">
       <button class="icon-btn" id="toggleAll">Expand all</button>
-      <button class="icon-btn" id="importBtn">⬆ Import</button>
     </div>
   </div>
   <input class="search" id="search" placeholder="Search name, part #, or barcode…">
@@ -523,9 +525,6 @@
         <span class="q">${it.qty}</span>
         <button class="plus" data-act="inc" aria-label="Add one">+</button>
       </div>
-      <button class="row-edit" data-act="edit" aria-label="Edit item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-      </button>
     </div>`;
   }
 
@@ -542,7 +541,6 @@
     const act = btn.dataset.act;
     if(act==="inc") setQty(id, it.qty+1);
     else if(act==="dec") setQty(id, it.qty-1);
-    else if(act==="edit") openEdit(it);
   });
 
   $("#chips").addEventListener("click", e=>{
@@ -605,22 +603,27 @@
     };
   }
 
+  // Quantity-only count sheet. Item details (name/unit/category/min/max) are read-only here;
+  // they're managed by CSV import, not editable in the app.
   function openScanSheet(code, existing){
     if(existing){
       const it = existing;
+      const meta = [it.category, it.unit, it.min_qty>0?("min "+it.min_qty+(it.max_qty>it.min_qty?"/max "+it.max_qty:"")):"", it.location]
+        .filter(Boolean).map(esc).join(" · ");
       sheet.innerHTML = `
         <div class="grip"></div>
-        <div class="kicker">Item found</div>
+        <div class="kicker">Count · on hand</div>
         <div class="known-name">${esc(it.name)}</div>
-        <div class="scode">${esc(code)}${it.location?" · "+esc(it.location):""}</div>
+        <div class="scode">${esc(code)}${meta?" · "+meta:""}</div>
         <div class="qty-big">
           <button class="minus" id="sMinus" aria-label="Remove one">–</button>
           <span class="val" id="sVal">${it.qty}</span>
           <button class="plus" id="sPlus" aria-label="Add one">+</button>
         </div>
-        <details class="more"><summary>Edit details</summary>${detailFields(it)}
-          <button class="btn block" id="sSaveDetails" style="margin-top:4px">Save details</button>
-        </details>
+        <div class="setrow">
+          <input id="sSet" type="number" inputmode="numeric" min="0" placeholder="set exact count">
+          <button class="btn" id="sSetBtn">Set</button>
+        </div>
         <div class="sheet-actions">
           <button class="btn" id="sClose">Done</button>
           <button class="btn primary" id="sNext">Scan next</button>
@@ -629,71 +632,27 @@
       const bump = async d=>{ const r = await setQty(it.id, byId(it.id).qty + d); if(r) valEl.textContent = r.qty; };
       sheet.querySelector("#sMinus").onclick=()=>bump(-1);
       sheet.querySelector("#sPlus").onclick=()=>bump(1);
-      sheet.querySelector("#sSaveDetails").onclick=async ()=>{
-        const d = readDetails(); if(!d.name){ toast("Name can’t be empty", true); return; }
-        const r = await updateItem(it.id, d); if(r){ toast("Saved"); closeSheet(); resumeScan(); }
+      sheet.querySelector("#sSetBtn").onclick=async ()=>{
+        const raw = sheet.querySelector("#sSet").value;
+        if(raw==="") return;
+        const n = Math.max(0, parseInt(raw,10)||0);
+        const r = await setQty(it.id, n); if(r){ valEl.textContent = r.qty; sheet.querySelector("#sSet").value=""; toast("Count set to "+r.qty); }
       };
+      sheet.querySelector("#sSet").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); sheet.querySelector("#sSetBtn").click(); } });
       sheet.querySelector("#sClose").onclick=()=>{ closeSheet(); resumeScan(); };
       sheet.querySelector("#sNext").onclick=()=>{ closeSheet(); resumeScan(); };
     } else {
       sheet.innerHTML = `
         <div class="grip"></div>
-        <div class="kicker">New barcode</div>
+        <div class="kicker">Not in inventory</div>
         <div class="scode">${esc(code)}</div>
-        <div class="field"><label>Already in your catalog? Link this barcode to it</label>
-          <input id="linkSearch" placeholder="Search part # or name…" autocomplete="off"></div>
-        <div class="link-list" id="linkList"></div>
-        <div class="or-divider">or add a new item</div>
-        ${detailFields({qty:1, min_qty:0})}
+        <p style="font-size:.9rem;color:var(--muted);margin:6px 0 16px;line-height:1.5">
+          This barcode isn't in the catalog. New items are added through a CSV import, not from the app.</p>
         <div class="sheet-actions">
-          <button class="btn" id="sCancel">Cancel</button>
-          <button class="btn primary" id="sAdd">Add to inventory</button>
+          <button class="btn primary" id="sClose">OK</button>
         </div>`;
-      const linkList = sheet.querySelector("#linkList");
-      const renderLinks = q=>{
-        q = (q||"").toLowerCase().trim();
-        if(!q){ linkList.innerHTML=""; return; }
-        const cands = Object.values(state.items).filter(it=> !it.barcode &&
-          ((it.name||"").toLowerCase().includes(q) || (it.sku||"").toLowerCase().includes(q)));
-        if(!cands.length){ linkList.innerHTML=`<div class="imp-errors" style="color:var(--muted)">No barcode-less catalog item matches “${esc(q)}”.</div>`; return; }
-        linkList.innerHTML = cands.slice(0,6).map(it=>`<button class="link-item" data-id="${it.id}">
-          <span>${esc(it.name)}</span><span class="lmeta">${esc(it.sku||"")}${it.location?" · "+esc(it.location):""}</span></button>`).join("");
-      };
-      sheet.querySelector("#linkSearch").addEventListener("input", ev=>renderLinks(ev.target.value));
-      linkList.addEventListener("click", async ev=>{
-        const b = ev.target.closest("[data-id]"); if(!b) return;
-        const r = await updateItem(b.dataset.id, { barcode:String(code).trim() });
-        if(r){ toast(`Barcode linked to ${r.name}`); closeSheet(); resumeScan(); }
-      });
-      setTimeout(()=>sheet.querySelector("#linkSearch").focus(), 60);
-      sheet.querySelector("#sCancel").onclick=()=>{ closeSheet(); resumeScan(); };
-      sheet.querySelector("#sAdd").onclick=async ()=>{
-        const d = readDetails(); if(!d.name){ toast("Enter an item name", true); sheet.querySelector("#fName").focus(); return; }
-        const r = await insertItem(Object.assign({ barcode:String(code).trim() }, d));
-        if(r){ toast("Added"); closeSheet(); resumeScan(); }
-      };
+      sheet.querySelector("#sClose").onclick=()=>{ closeSheet(); resumeScan(); };
     }
-    backdrop.classList.add("open");
-  }
-
-  function openEdit(it){
-    sheet.innerHTML = `
-      <div class="grip"></div>
-      <div class="kicker">Edit item</div>
-      <div class="scode">${esc(it.barcode)}</div>
-      ${detailFields(it)}
-      <div class="sheet-actions">
-        <button class="btn" id="eDelete" style="color:var(--remove)">Delete</button>
-        <button class="btn primary" id="eSave">Save</button>
-      </div>`;
-    sheet.querySelector("#eSave").onclick=async ()=>{
-      const d = readDetails(); if(!d.name){ toast("Name can’t be empty", true); return; }
-      const r = await updateItem(it.id, d); if(r){ toast("Saved"); closeSheet(); }
-    };
-    sheet.querySelector("#eDelete").onclick=async ()=>{
-      if(!confirm(`Delete "${it.name}"? This cannot be undone.`)) return;
-      await removeItem(it.id); toast("Deleted"); closeSheet();
-    };
     backdrop.classList.add("open");
   }
 
@@ -734,7 +693,7 @@
     return map;
   }
 
-  $("#importBtn").addEventListener("click", openImportSheet);
+  { const ib = $("#importBtn"); if(ib) ib.addEventListener("click", openImportSheet); }
 
   function openImportSheet(){
     sheet.innerHTML = `
